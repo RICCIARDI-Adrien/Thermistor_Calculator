@@ -3,12 +3,14 @@
  * @author Adrien RICCIARDI
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
 // Private constants
 //-------------------------------------------------------------------------------------------------
 /** Maximum allowed amount of ADC steps. */
-#define MAIN_MAXIMUM_ADC_STEPS_COUNT 65536 // 16-bit ADC
+#define MAIN_MAXIMUM_ADC_RESOLUTION 65536 // 16-bit ADC
 
 //-------------------------------------------------------------------------------------------------
 // Private types
@@ -24,7 +26,7 @@ typedef struct
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** All computed values for all requested ADC values. */
-static TMainComputedValues Values[MAIN_MAXIMUM_ADC_STEPS_COUNT];
+static TMainComputedValues Values[MAIN_MAXIMUM_ADC_RESOLUTION];
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -56,24 +58,16 @@ static void MainDisplayProgramUsage(char *Pointer_String_Program_Name)
 		"       |                        |\n"
 		"      GND                      GND\n"
 		"\n"
-		"Usage : %s -c circuit -B beta -R r25 -r resistor -v Vcc -a resolution\n"
-		"  -c : circuit variant, it can be 1 or 2 (see above for circuit variants description)\n"
-		"  -B : thermistor Beta coefficient (kelvin), this is the B25/100 value of the datasheet\n"
-		"  -R : thermistor resistance at 25 Celsius degrees (ohm), floating numbers are allowed\n"
-		"  -r : voltage divider bridge other resistance value (ohm), floating numbers are allowed\n"
-		"  -v : Vcc voltage (volt), floating numbers are allowed\n"
-		"  -a : ADC resolution (or how many values you want in the lookup table)\n"
+		"Usage : %s [-c circuit] [-B beta] [-R r25] [-r resistor] [-v Vcc] [-a resolution]\n"
+		"  -c : circuit variant, it can be 1 or 2 (see above for circuit variants description). Default value is 1.\n"
+		"  -B : thermistor Beta coefficient (kelvin), this is the B25/100 value of the datasheet. Default value is 4300.\n"
+		"  -R : thermistor resistance at 25 Celsius degrees (ohm), floating numbers are allowed. Default value is 10000.\n"
+		"  -r : voltage divider bridge other resistance value (ohm), floating numbers are allowed. Default value is 10000.\n"
+		"  -v : Vcc voltage (volt), floating numbers are allowed. Default value is 3.3.\n"
+		"  -a : ADC resolution (or how many values you want in the lookup table). Default value is 256.\n"
+		"  -h : display this help.\n"
 		, Pointer_String_Program_Name);
 }
-
-/** Compute the thermistor voltage corresponding to an ADC value.
- * @param Circuit_Variant The selected circuit variant (must be 1 or 2).
- * @param Voltage_Divider_Bridge_Voltage Vcc voltage in volts.
- * @param Voltage_Divider_Resistor Resistor value in ohms.
- * @param ADC_Value The ADC value (in range [0; ADC_resolution-1].
- * @return The corresponding voltage in volts.
- */
-//static MainComputeThermistorVoltage(int Circuit_Variant, double Voltage_Divider_Bridge_Voltage, double Voltage_Divider_Resistor, unsigned int ADC_Value)
 
 /** Compute the voltage divider output voltage corresponding to an ADC value.
  * @param Voltage_Divider_Bridge_Voltage Vcc voltage in volts.
@@ -111,26 +105,94 @@ static double MainComputeThermistorResistance(int Circuit_Variant, double Voltag
 int main(int argc, char *argv[])
 {
 	unsigned int i, ADC_Resolution = 256;
+	int Circuit_Variant = 1, Parameter;
+	double Voltage_Divider_Bridge_Voltage = 3.3, Voltage_Divider_Resistor = 10000;
 	
 	// Display banner
 	puts("+-------------------------------------------------+");
 	puts("| Thermistor calculator (C) 2018 Adrien RICCIARDI |");
 	puts("+-------------------------------------------------+");
 	
-	// Check parameters
-	// TODO
-	//MainDisplayProgramUsage(argv[0]);
-	
-	// TEST
-	for (i = 0; i < 256; i++)
+	// Extract parameters
+	while (1)
 	{
-		Values[i].Voltage_Divider_Output_Voltage = MainComputeVoltageDividerOutputVoltage(3.3, 256, i);
-		Values[i].Thermistor_Resistance = MainComputeThermistorResistance(1, 3.3, Values[i].Voltage_Divider_Output_Voltage, 10000);
+		Parameter = getopt(argc, argv, "B:R:a:c:hr:v:");
+		if (Parameter == -1) break;
+		
+		switch (Parameter)
+		{
+			case 'a':
+				if (sscanf(optarg, "%u", &ADC_Resolution) != 1)
+				{
+					printf("Error : invalid ADC resolution value.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				// Make sure the results array has enough room
+				if (ADC_Resolution > MAIN_MAXIMUM_ADC_RESOLUTION)
+				{
+					printf("Error : maximum allowed ADC resolution is %u.\n", MAIN_MAXIMUM_ADC_RESOLUTION);
+					return EXIT_FAILURE;
+				}
+				break;
+				
+			case 'c':
+				if (sscanf(optarg, "%d", &Circuit_Variant) != 1)
+				{
+					printf("Error : invalid circuit variant value.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				if ((Circuit_Variant < 1) || (Circuit_Variant > 2))
+				{
+					printf("Error : circuit variant value must be 1 or 2.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				break;
+				
+			case 'h':
+				MainDisplayProgramUsage(argv[0]);
+				return EXIT_SUCCESS;
+				
+			case 'r':
+				if (sscanf(optarg, "%lf", &Voltage_Divider_Resistor) != 1)
+				{
+					printf("Error : invalid voltage divider resistor value.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				break;
+				
+			case 'v':
+				if (sscanf(optarg, "%lf", &Voltage_Divider_Bridge_Voltage) != 1)
+				{
+					printf("Error : invalid voltage divider bridge voltage value.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				break;
+				
+			case '?':
+				putchar('\n');
+				MainDisplayProgramUsage(argv[0]);
+				return EXIT_FAILURE;
+			
+			default:
+				break;
+		}
+	}
+	
+	// Compute values
+	for (i = 0; i < ADC_Resolution; i++)
+	{
+		Values[i].Voltage_Divider_Output_Voltage = MainComputeVoltageDividerOutputVoltage(Voltage_Divider_Bridge_Voltage, ADC_Resolution, i);
+		Values[i].Thermistor_Resistance = MainComputeThermistorResistance(Circuit_Variant, Voltage_Divider_Bridge_Voltage, Values[i].Voltage_Divider_Output_Voltage, Voltage_Divider_Resistor);
 	}
 	
 	// Display results
 	printf("ADC value	Thermistor voltage (V)	Thermistor resistance (ohm)\n");
-	for (i = 0; i < ADC_Resolution; i++) printf("%d		%f		%f\n", i, Values[i].Voltage_Divider_Output_Voltage, Values[i].Thermistor_Resistance);
+	for (i = 0; i < ADC_Resolution; i++) printf("%d		%lf		%lf\n", i, Values[i].Voltage_Divider_Output_Voltage, Values[i].Thermistor_Resistance);
 	
-	return 5;
+	return EXIT_SUCCESS;
 }
