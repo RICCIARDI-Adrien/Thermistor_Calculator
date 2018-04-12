@@ -5,6 +5,27 @@
 #include <stdio.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private constants
+//-------------------------------------------------------------------------------------------------
+/** Maximum allowed amount of ADC steps. */
+#define MAIN_MAXIMUM_ADC_STEPS_COUNT 65536 // 16-bit ADC
+
+//-------------------------------------------------------------------------------------------------
+// Private types
+//-------------------------------------------------------------------------------------------------
+/** All computed values for a precise ADC value. */
+typedef struct
+{
+	double Thermistor_Voltage; //!< The voltage across the thermistor (volts).
+} TMainComputedValues;
+
+//-------------------------------------------------------------------------------------------------
+// Private variables
+//-------------------------------------------------------------------------------------------------
+/** All computed values for all requested ADC values. */
+static TMainComputedValues Values[MAIN_MAXIMUM_ADC_STEPS_COUNT];
+
+//-------------------------------------------------------------------------------------------------
 // Private functions
 //-------------------------------------------------------------------------------------------------
 /** Display the program usage help.
@@ -47,13 +68,43 @@ static void MainDisplayProgramUsage(char *Pointer_String_Program_Name)
 		, Pointer_String_Program_Name);
 }
 
+/** Compute the thermistor voltage corresponding to an ADC value.
+ * @param Circuit_Variant The selected circuit variant (must be 1 or 2).
+ * @param Voltage_Divider_Bridge_Voltage Vcc voltage in volts.
+ * @param Voltage_Divider_Resistor Resistor value in ohms.
+ * @param ADC_Value The ADC value (in range [0; ADC_resolution-1].
+ * @return The corresponding voltage in volts.
+ */
+//static MainComputeThermistorVoltage(int Circuit_Variant, double Voltage_Divider_Bridge_Voltage, double Voltage_Divider_Resistor, unsigned int ADC_Value)
+
+/** Compute the thermistor voltage corresponding to an ADC value.
+ * @param Voltage_Divider_Bridge_Voltage Vcc voltage in volts.
+ * @param ADC_Resolution The ADC resolution (corresponding to the amount of ADC steps). For instance, set 256 for a 8-bit ADC.
+ * @param ADC_Value The ADC value (in range [0; ADC_resolution-1]).
+ * @return The corresponding voltage in volts.
+ */
+static double MainComputeThermistorVoltage(double Voltage_Divider_Bridge_Voltage, unsigned int ADC_Resolution, unsigned int ADC_Value)
+{
+	return Voltage_Divider_Bridge_Voltage * ADC_Value / (ADC_Resolution - 1); // Subtract 1 to resolution because the maximum reachable ADC value is resolution-1
+}
+
 //-------------------------------------------------------------------------------------------------
 // Entry point
 //-------------------------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-	// Check parameters
+	unsigned int i;
 	
+	// Check parameters
+	// TODO
 	MainDisplayProgramUsage(argv[0]);
+	
+	// TEST
+	for (i = 0; i < 256; i++)
+	{
+		Values[i].Thermistor_Voltage = MainComputeThermistorVoltage(3.3, 256, i);
+		printf("%d : %f\n", i, Values[i].Thermistor_Voltage);
+	}
+	
 	return 5;
 }
