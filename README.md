@@ -27,7 +27,7 @@ Circuit variant 1        Circuit variant 2
       | | Resistor             | | NTC
       +-+                      +-+
        |                        |
-       |--- Vntc                |--- Vntc
+       |--- Vout                |--- Vout
        |                        |
       +-+                      +-+
       | | NTC                  | | Resistor
@@ -35,7 +35,7 @@ Circuit variant 1        Circuit variant 2
        |                        |
       GND                      GND
 
-Usage : ./thermistor-calculator [-c circuit] [-B beta] [-R r25] [-r resistor] [-v Vcc] [-a resolution]
+Usage : ./thermistor-calculator [-c circuit] [-B beta] [-R R25] [-r resistor] [-v Vcc] [-a resolution] [-h]
   -c : circuit variant, it can be 1 or 2 (see above for circuit variants description). Default value is 1.
   -B : thermistor Beta coefficient (kelvin), this is the B25/100 value of the datasheet. Default value is 4300.
   -R : thermistor resistance at 25 Celsius degrees (ohm), floating numbers are allowed. Default value is 10000.
