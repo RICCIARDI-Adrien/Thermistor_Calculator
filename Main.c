@@ -2,6 +2,7 @@
  * Compute the ADC lookup table (containing Celsius temperatures) corresponding to a specific thermistor voltage, taking into account the voltage divider the thermistor is connected to.
  * @author Adrien RICCIARDI
  */
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,6 +21,7 @@ typedef struct
 {
 	double Voltage_Divider_Output_Voltage; //!< The bridge output voltage (volts).
 	double Thermistor_Resistance; //!< The thermistor resistance (ohms).
+	double Thermistor_Temperature; //!< The thermistor temperature (Celsius).
 } TMainComputedValues;
 
 //-------------------------------------------------------------------------------------------------
@@ -99,6 +101,20 @@ static double MainComputeThermistorResistance(int Circuit_Variant, double Voltag
 	return Result;
 }
 
+/** Determine the thermistor Celsius temperature for a given thermistor resistance.
+ * @param Thermistor_Beta_Coefficient Beta coefficient value.
+ * @param Thermistor_Reference_Resistance Thermistor R25 resistor value (ohms).
+ * @param Thermistor_Resistance The resistance to get temperature from (ohms).
+ * @return The corresponding temperature (Celsius).
+ */
+static double MainComputeThermistorTemperature(double Thermistor_Beta_Coefficient, double Thermistor_Reference_Resistance, double Thermistor_Resistance)
+{
+	double Kelvin_Result;
+	
+	Kelvin_Result = 1. / ((log(Thermistor_Resistance / Thermistor_Reference_Resistance) / Thermistor_Beta_Coefficient) + (1. / (273.15 + 25.)));
+	return Kelvin_Result - 273.15;
+}
+
 //-------------------------------------------------------------------------------------------------
 // Entry point
 //-------------------------------------------------------------------------------------------------
@@ -106,7 +122,7 @@ int main(int argc, char *argv[])
 {
 	unsigned int i, ADC_Resolution = 256;
 	int Circuit_Variant = 1, Parameter;
-	double Voltage_Divider_Bridge_Voltage = 3.3, Voltage_Divider_Resistor = 10000;
+	double Voltage_Divider_Bridge_Voltage = 3.3, Voltage_Divider_Resistor = 10000., Thermistor_Beta_Coefficient = 4300., Thermistor_Reference_Resistance = 10000.;
 	
 	// Display banner
 	puts("+-------------------------------------------------+");
@@ -121,6 +137,24 @@ int main(int argc, char *argv[])
 		
 		switch (Parameter)
 		{
+			case 'B':
+				if (sscanf(optarg, "%lf", &Thermistor_Beta_Coefficient) != 1)
+				{
+					printf("Error : invalid thermistor beta coefficient value.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				break;
+				
+			case 'R':
+				if (sscanf(optarg, "%lf", &Thermistor_Reference_Resistance) != 1)
+				{
+					printf("Error : invalid thermistor reference resistance (R25) value.\n\n");
+					MainDisplayProgramUsage(argv[0]);
+					return EXIT_FAILURE;
+				}
+				break;
+			
 			case 'a':
 				if (sscanf(optarg, "%u", &ADC_Resolution) != 1)
 				{
@@ -188,11 +222,12 @@ int main(int argc, char *argv[])
 	{
 		Values[i].Voltage_Divider_Output_Voltage = MainComputeVoltageDividerOutputVoltage(Voltage_Divider_Bridge_Voltage, ADC_Resolution, i);
 		Values[i].Thermistor_Resistance = MainComputeThermistorResistance(Circuit_Variant, Voltage_Divider_Bridge_Voltage, Values[i].Voltage_Divider_Output_Voltage, Voltage_Divider_Resistor);
+		Values[i].Thermistor_Temperature = MainComputeThermistorTemperature(Thermistor_Beta_Coefficient, Thermistor_Reference_Resistance, Values[i].Thermistor_Resistance);
 	}
 	
 	// Display results
-	printf("ADC value	Thermistor voltage (V)	Thermistor resistance (ohm)\n");
-	for (i = 0; i < ADC_Resolution; i++) printf("%d		%lf		%lf\n", i, Values[i].Voltage_Divider_Output_Voltage, Values[i].Thermistor_Resistance);
+	printf("ADC value	Thermistor voltage (V)	Thermistor resistance (ohm)	Thermistor temperature (Celsius)\n");
+	for (i = 0; i < ADC_Resolution; i++) printf("%d		%lf		%lf			%lf\n", i, Values[i].Voltage_Divider_Output_Voltage, Values[i].Thermistor_Resistance, Values[i].Thermistor_Temperature);
 	
 	return EXIT_SUCCESS;
 }
