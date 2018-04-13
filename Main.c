@@ -13,6 +13,9 @@
 /** Maximum allowed amount of ADC steps. */
 #define MAIN_MAXIMUM_ADC_RESOLUTION 65536 // 16-bit ADC
 
+/** How many columns in the printed lookup table. */
+#define MAIN_LOOKUP_TABLE_COLUMNS_COUNT 16
+
 //-------------------------------------------------------------------------------------------------
 // Private types
 //-------------------------------------------------------------------------------------------------
@@ -67,8 +70,7 @@ static void MainDisplayProgramUsage(char *Pointer_String_Program_Name)
 		"  -r : voltage divider bridge other resistance value (ohm), floating numbers are allowed. Default value is 10000.\n"
 		"  -v : Vcc voltage (volt), floating numbers are allowed. Default value is 3.3.\n"
 		"  -a : ADC resolution (or how many values you want in the lookup table). Default value is 256.\n"
-		"  -h : display this help.\n"
-		, Pointer_String_Program_Name);
+		"  -h : display this help.\n", Pointer_String_Program_Name);
 }
 
 /** Compute the voltage divider output voltage corresponding to an ADC value.
@@ -121,7 +123,7 @@ static double MainComputeThermistorTemperature(double Thermistor_Beta_Coefficien
 int main(int argc, char *argv[])
 {
 	unsigned int i, ADC_Resolution = 256;
-	int Circuit_Variant = 1, Parameter;
+	int Circuit_Variant = 1, Parameter, j;
 	double Voltage_Divider_Bridge_Voltage = 3.3, Voltage_Divider_Resistor = 10000., Thermistor_Beta_Coefficient = 4300., Thermistor_Reference_Resistance = 10000.;
 	
 	// Display banner
@@ -228,6 +230,22 @@ int main(int argc, char *argv[])
 	// Display results
 	printf("ADC value	Thermistor voltage (V)	Thermistor resistance (ohm)	Thermistor temperature (Celsius)\n");
 	for (i = 0; i < ADC_Resolution; i++) printf("%d		%lf		%lf			%lf\n", i, Values[i].Voltage_Divider_Output_Voltage, Values[i].Thermistor_Resistance, Values[i].Thermistor_Temperature);
+	
+	// Display ADC table
+	printf("\nADC lookup table :\n");
+	i = 0;
+	while (i < ADC_Resolution)
+	{
+		for (j = 0; j < MAIN_LOOKUP_TABLE_COLUMNS_COUNT; j++)
+		{
+			// Stop displaying when there is no more data to display
+			if (i >= ADC_Resolution) break;
+			
+			printf("%4d, ", (int) lrint(Values[i].Thermistor_Temperature));
+			i++;
+		}
+		putchar('\n');
+	}
 	
 	return EXIT_SUCCESS;
 }
